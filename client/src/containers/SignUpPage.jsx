@@ -1,11 +1,16 @@
-import PropTypes from 'prop-types';
-import React from 'react';
+import React, { PropTypes } from 'react';
 import SignUpForm from '../components/SignUpForm.jsx';
-import axios from 'axios';
+
 
 class SignUpPage extends React.Component {
-  constructor(props) {
-    super(props);
+
+  /**
+   * Class constructor.
+   */
+  constructor(props, context) {
+    super(props, context);
+
+    // set the initial component state
     this.state = {
       errors: {},
       user: {
@@ -13,46 +18,78 @@ class SignUpPage extends React.Component {
         name: '',
         password: ''
       }
-    }
+    };
+
     this.processForm = this.processForm.bind(this);
     this.changeUser = this.changeUser.bind(this);
   }
 
+  /**
+   * Process the form.
+   *
+   * @param {object} event - the JavaScript event object
+   */
+  processForm(event) {
+    // prevent default action. in this case, action is the form submission event
+    event.preventDefault();
 
-  changeUser(e) {
-    const field = e.target.name;
+    // create a string for an HTTP body message
+    const name = encodeURIComponent(this.state.user.name);
+    const email = encodeURIComponent(this.state.user.email);
+    const password = encodeURIComponent(this.state.user.password);
+    const formData = `name=${name}&email=${email}&password=${password}`;
+
+    // create an AJAX request
+    const xhr = new XMLHttpRequest();
+    xhr.open('post', '/auth/signup');
+    xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+    xhr.responseType = 'json';
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        // success
+
+        // change the component-container state
+        this.setState({
+          errors: {}
+        });
+
+        // set a message
+        localStorage.setItem('successMessage', xhr.response.message);
+
+        // make a redirect
+        this.context.router.replace('/login');
+      } else {
+        // failure
+
+        const errors = xhr.response.errors ? xhr.response.errors : {};
+        errors.summary = xhr.response.message;
+
+        this.setState({
+          errors
+        });
+      }
+    });
+    xhr.send(formData);
+  }
+
+  /**
+   * Change the user object.
+   *
+   * @param {object} event - the JavaScript event object
+   */
+  changeUser(event) {
+    const field = event.target.name;
     const user = this.state.user;
-    user[field] = e.target.value;
+    user[field] = event.target.value;
 
     this.setState({
       user
     });
   }
 
-  processForm(e) {
-    e.preventDefault();
-
-    // const name = this.state.user.name;
-    // const email = this.state.user.email;
-    // const password = this.state.user.password;
-    // const formData = `name=${name}&email=${email}&password=${password}`;
-
-    axios.post('/auth/signup', {
-      user: this.state.user
-    })
-      .then((res) => {
-        console.log('Valid form');
-      })
-      .catch((err) => {
-        const errors = err.response.data.errors;
-        errors.summary = err.response.data.message;
-        this.setState({
-          errors
-        })
-        console.log(this.state.errors)
-      })
-  }
-
+  /**
+   * Render the component.
+   */
   render() {
     return (
       <SignUpForm
@@ -63,6 +100,11 @@ class SignUpPage extends React.Component {
       />
     );
   }
+
 }
+
+SignUpPage.contextTypes = {
+  router: PropTypes.object.isRequired
+};
 
 export default SignUpPage;
